@@ -1,0 +1,22 @@
+{
+  "name": "benefit-illustration-root",
+  "version": "1.0.0",
+  "description": "Full Stack Benefit Illustration Module with React, Express, and PostgreSQL",
+  "scripts": {
+    "test": "npm --prefix backend test",
+    "test:coverage": "npm --prefix backend run test:coverage",
+    "start:backend": "npm --prefix backend start",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build:frontend": "npm --prefix frontend run build"
+  },
+  "keywords": [
+    "benefit-illustration",
+    "react",
+    "express",
+    "postgresql",
+    "actuarial"
+  ],
+  "license": "ISC"
+}
+
