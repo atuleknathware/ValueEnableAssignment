@@ -103,11 +103,28 @@ function maskEmail(email) {
   return `${user[0]}${'*'.repeat(user.length - 2)}${user.slice(-1)}@${domain}`;
 }
 
+/**
+ * Mask customer full name, keeping first and last character of each word
+ * e.g., "Rahul Sharma" -> "R***l S****a"
+ */
+function maskName(name) {
+  if (!name) return '';
+  return String(name)
+    .trim()
+    .split(/\s+/)
+    .map((part) => {
+      if (part.length <= 2) return `${part[0]}*`;
+      return `${part[0]}${'*'.repeat(part.length - 2)}${part.slice(-1)}`;
+    })
+    .join(' ');
+}
+
 module.exports = {
   encrypt,
   decrypt,
   maskMobile,
   maskDob,
   maskEmail,
+  maskName,
 };
 

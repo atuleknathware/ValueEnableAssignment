@@ -5,9 +5,25 @@ import { useAuth } from '../context/AuthContext';
 export default function Calculator() {
   const { user, isAuthenticated } = useAuth();
 
+  const [catalog, setCatalog] = useState({
+    policyTypes: [
+      { id: 'ENDOWMENT', name: 'Traditional Participating Endowment Plan' },
+      { id: 'MONEY_BACK', name: 'Periodic Money-Back Savings Plan' },
+      { id: 'WHOLE_LIFE', name: 'Whole Life Guaranteed Protection Plan' },
+    ],
+    riders: [
+      { id: 'ACCIDENTAL_DEATH', name: 'Accidental Death Benefit (ADB) Rider' },
+      { id: 'CRITICAL_ILLNESS', name: 'Critical Illness (CI) Care Rider' },
+      { id: 'WAIVER_OF_PREMIUM', name: 'Waiver of Premium (WoP) Disability Rider' },
+    ],
+    samplePolicies: [],
+  });
+
   const [form, setForm] = useState({
     dob: '1999-12-12',
     gender: 'M',
+    policyType: 'ENDOWMENT',
+    riders: [],
     sumAssured: 1200000,
     modalPremium: 40000,
     premiumFrequency: 'Yearly',
@@ -21,6 +37,20 @@ export default function Calculator() {
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [errors, setErrors] = useState([]);
+
+  // Fetch Policy Catalog & Sample Policies from backend API on mount
+  useEffect(() => {
+    illustrationAPI
+      .getCatalog()
+      .then((res) => {
+        if (res.data?.success && res.data?.data) {
+          setCatalog(res.data.data);
+        }
+      })
+      .catch(() => {
+        // Fallback to default local catalog if offline
+      });
+  }, []);
 
   // Auto-fill DOB from authenticated user if available
   useEffect(() => {
@@ -39,18 +69,48 @@ export default function Calculator() {
     setSaveSuccess(false);
   };
 
+  const handleRiderToggle = (riderId) => {
+    setForm((prev) => {
+      const exists = prev.riders.includes(riderId);
+      const nextRiders = exists
+        ? prev.riders.filter((id) => id !== riderId)
+        : [...prev.riders, riderId];
+      return { ...prev, riders: nextRiders };
+    });
+    setErrors([]);
+    setSaveSuccess(false);
+  };
+
   // Quick load official sample scenario from assignment_reference_sample (1).xlsm
   const loadExcelSample = () => {
-    setForm({
-      dob: '1999-12-12',
-      gender: 'M',
-      sumAssured: 1200000,
-      modalPremium: 80000,
-      premiumFrequency: 'Yearly',
-      pt: 18,
-      ppt: 10,
-      policyName: 'Excel Sample Reference Policy',
-    });
+    const excelPreset = catalog.samplePolicies?.find((s) => s.id === 'SAMPLE-EXCEL-REF');
+    if (excelPreset) {
+      setForm({
+        dob: excelPreset.dob,
+        gender: excelPreset.gender,
+        policyType: excelPreset.policyType || 'ENDOWMENT',
+        riders: excelPreset.riders || [],
+        sumAssured: excelPreset.sumAssured,
+        modalPremium: excelPreset.modalPremium,
+        premiumFrequency: excelPreset.premiumFrequency,
+        pt: excelPreset.pt,
+        ppt: excelPreset.ppt,
+        policyName: excelPreset.policyName,
+      });
+    } else {
+      setForm({
+        dob: '1999-12-12',
+        gender: 'M',
+        policyType: 'ENDOWMENT',
+        riders: [],
+        sumAssured: 1200000,
+        modalPremium: 80000,
+        premiumFrequency: 'Yearly',
+        pt: 18,
+        ppt: 10,
+        policyName: 'Excel Sample Reference Policy',
+      });
+    }
     setErrors([]);
     setSaveSuccess(false);
   };
@@ -191,6 +251,23 @@ export default function Calculator() {
             )}
 
             <form onSubmit={handleCalculate}>
+              {/* Policy Type */}
+              <div className="mb-3">
+                <label className="form-label small fw-semibold">Policy Type</label>
+                <select
+                  name="policyType"
+                  className="form-select form-select-sm"
+                  value={form.policyType}
+                  onChange={handleChange}
+                >
+                  {catalog.policyTypes.map((ptItem) => (
+                    <option key={ptItem.id} value={ptItem.id}>
+                      {ptItem.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* DOB & Gender */}
               <div className="row mb-3">
                 <div className="col-7">
@@ -309,6 +386,27 @@ export default function Calculator() {
                 </div>
               </div>
 
+              {/* Optional Riders */}
+              <div className="mb-3">
+                <label className="form-label small fw-semibold mb-1">Optional Riders</label>
+                <div className="border rounded p-2 bg-light">
+                  {catalog.riders.map((rider) => (
+                    <div className="form-check small" key={rider.id}>
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        id={`rider-${rider.id}`}
+                        checked={form.riders.includes(rider.id)}
+                        onChange={() => handleRiderToggle(rider.id)}
+                      />
+                      <label className="form-check-label" htmlFor={`rider-${rider.id}`}>
+                        {rider.name}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Policy Name (for saving) */}
               {isAuthenticated && (
                 <div className="mb-3">
@@ -380,7 +478,7 @@ export default function Calculator() {
                     <div className="metric-label">Total Premiums Paid</div>
                     <div className="metric-value">{formatINR(result.policy.totalPremiumsPaid)}</div>
                     <div className="text-muted" style={{ fontSize: '0.72rem' }}>
-                      {result.policy.ppt} installments
+                      {result.policy.ppt} installments ({result.policy.premiumFrequency})
                     </div>
                   </div>
                 </div>
@@ -409,13 +507,26 @@ export default function Calculator() {
               </div>
 
               {/* Action Buttons & Status */}
-              <div className="d-flex justify-content-between align-items-center bg-white p-2 px-3 rounded shadow-sm border">
+              <div className="d-flex flex-wrap justify-content-between align-items-center bg-white p-2 px-3 rounded shadow-sm border gap-2">
                 <div className="small">
-                  <strong>Total Bonus Accrued:</strong>{' '}
-                  <span className="text-primary fw-semibold">{formatINR(result.policy.totalBonusAccrued)}</span>
-                  <span className="text-muted ms-2" style={{ fontSize: '0.75rem' }}>
-                    (Formula basis: <code>Inputs!$C$5 * Bonus Rate</code>)
-                  </span>
+                  <div>
+                    <strong>Plan Type:</strong>{' '}
+                    <span className="badge bg-primary-subtle text-primary-emphasis me-2">
+                      {result.policy.policyTypeName || result.policy.policyType}
+                    </span>
+                    <strong>Total Bonus Accrued:</strong>{' '}
+                    <span className="text-primary fw-semibold">{formatINR(result.policy.totalBonusAccrued)}</span>
+                  </div>
+                  {result.policy.riders && result.policy.riders.length > 0 && (
+                    <div className="mt-1">
+                      <strong>Selected Riders:</strong>{' '}
+                      {result.policy.riders.map((r) => (
+                        <span key={r.id} className="badge bg-secondary-subtle text-secondary-emphasis me-1">
+                          {r.name} {r.riderSumAssured > 0 ? `(Cover: ${formatINR(r.riderSumAssured)})` : ''}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="d-flex gap-2">
                   <button onClick={handleExportCSV} className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1">

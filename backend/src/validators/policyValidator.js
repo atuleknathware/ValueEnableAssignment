@@ -158,6 +158,22 @@ function validatePolicyInputs(input, options = {}) {
     errors.push(`Gender must be one of: ${cfg.genders.join(', ')}.`);
   }
 
+  // 8. Policy Type & Riders Validation (Optional structured attributes)
+  const { POLICY_TYPES, RIDERS } = require('../models/policyCatalog');
+  if (input.policyType && !POLICY_TYPES[input.policyType]) {
+    errors.push(`Policy Type must be one of: ${Object.keys(POLICY_TYPES).join(', ')}.`);
+  }
+  if (input.riders !== undefined) {
+    if (!Array.isArray(input.riders)) {
+      errors.push('Riders must be provided as an array of rider codes/IDs.');
+    } else {
+      const invalidRiders = input.riders.filter((r) => !RIDERS[r]);
+      if (invalidRiders.length > 0) {
+        errors.push(`Invalid rider(s): ${invalidRiders.join(', ')}. Allowed riders: ${Object.keys(RIDERS).join(', ')}.`);
+      }
+    }
+  }
+
   return {
     isValid: errors.length === 0,
     errors,

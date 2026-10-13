@@ -28,7 +28,9 @@ function optionalAuth(req, res, next) {
   next();
 }
 
-// Public or optionally authenticated calculation
+// Public endpoints for policy catalog, sample policies, and on-the-fly calculation
+router.get('/catalog', illustrationController.getCatalog);
+router.get('/samples', illustrationController.getCatalog);
 router.post('/calculate', optionalAuth, illustrationController.calculate);
 
 // Authenticated endpoints

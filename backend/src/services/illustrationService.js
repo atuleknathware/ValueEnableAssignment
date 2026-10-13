@@ -167,6 +167,8 @@ function generateIllustration(policyParams, options = {}) {
   const {
     dob,
     gender = 'M',
+    policyType = 'ENDOWMENT',
+    riders = [],
     sumAssured,
     modalPremium,
     premiumFrequency = 'Yearly',
@@ -174,11 +176,16 @@ function generateIllustration(policyParams, options = {}) {
     ppt,
   } = policyParams;
 
+  const { POLICY_TYPES, PREMIUM_OPTIONS, resolveRiders } = require('../models/policyCatalog');
+
   const numPT = parseInt(pt, 10);
   const numPPT = parseInt(ppt, 10);
   const numSA = Number(sumAssured);
   const numModalPrem = Number(modalPremium);
   const annualPrem = calculateAnnualPremium(numModalPrem, premiumFrequency);
+  const resolvedRiders = resolveRiders(riders, numSA, annualPrem);
+  const selectedPolicyType = POLICY_TYPES[policyType] || POLICY_TYPES.ENDOWMENT;
+  const selectedPremiumOption = PREMIUM_OPTIONS[premiumFrequency] || PREMIUM_OPTIONS.Yearly;
 
   const asOfDate = options.asOfDate ? new Date(options.asOfDate) : new Date();
   const customerAge = calculateAge(dob, asOfDate);
@@ -271,10 +278,14 @@ function generateIllustration(policyParams, options = {}) {
       gender,
     },
     policy: {
+      policyType: selectedPolicyType.id,
+      policyTypeName: selectedPolicyType.name,
+      riders: resolvedRiders,
       sumAssured: numSA,
       modalPremium: numModalPrem,
       annualPremium: annualPrem,
       premiumFrequency,
+      premiumOption: selectedPremiumOption,
       pt: numPT,
       ppt: numPPT,
       totalPremiumsPaid,

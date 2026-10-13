@@ -36,6 +36,9 @@ async function saveIllustration(userId, illustrationData) {
 
   const meta = {
     gender: customer.gender,
+    policyType: policy.policyType || 'ENDOWMENT',
+    policyTypeName: policy.policyTypeName || 'Traditional Participating Endowment Plan',
+    riders: policy.riders || [],
     bonusStrategy: policy.bonusStrategy,
     formulaBasis: 'assignment_reference_sample (1).xlsm',
   };
@@ -160,6 +163,9 @@ async function getIllustrationById(id, userId) {
     },
     policy: {
       policyName: ill.policy_name,
+      policyType: meta.policyType || 'ENDOWMENT',
+      policyTypeName: meta.policyTypeName || 'Traditional Participating Endowment Plan',
+      riders: meta.riders || [],
       sumAssured: Number(ill.sum_assured),
       modalPremium: Number(ill.modal_premium),
       premiumFrequency: ill.premium_frequency,

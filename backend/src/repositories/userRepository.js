@@ -1,10 +1,11 @@
 const db = require('../config/database');
-const { encrypt, decrypt, maskMobile, maskDob } = require('../utils/crypto');
+const { encrypt, decrypt, maskMobile, maskDob, maskName } = require('../utils/crypto');
 
 /**
- * Creates a new user with encrypted PII
+ * Creates a new user with encrypted PII (name, DOB, mobile)
  */
 async function createUser({ fullName, dob, mobile, email, passwordHash }) {
+  const nameEncrypted = encrypt(fullName);
   const dobEncrypted = encrypt(dob);
   const mobileEncrypted = encrypt(mobile);
 
@@ -15,7 +16,7 @@ async function createUser({ fullName, dob, mobile, email, passwordHash }) {
   `;
 
   const result = await db.query(queryText, [
-    fullName,
+    nameEncrypted,
     dobEncrypted,
     mobileEncrypted,
     email.toLowerCase().trim(),
@@ -42,7 +43,7 @@ async function findUserByEmail(email) {
 }
 
 /**
- * Finds user by ID and decrypts/masks PII
+ * Finds user by ID and decrypts/masks PII (name, DOB, mobile)
  */
 async function findUserById(id, { unmask = false } = {}) {
   const queryText = `
@@ -55,12 +56,14 @@ async function findUserById(id, { unmask = false } = {}) {
   if (result.rows.length === 0) return null;
 
   const row = result.rows[0];
+  const nameDecrypted = decrypt(row.full_name) || row.full_name;
   const dobDecrypted = decrypt(row.dob_encrypted);
   const mobileDecrypted = decrypt(row.mobile_encrypted);
 
   return {
     id: row.id,
-    fullName: row.full_name,
+    fullName: unmask ? nameDecrypted : maskName(nameDecrypted),
+    rawFullName: nameDecrypted,
     email: row.email,
     dob: unmask ? dobDecrypted : maskDob(dobDecrypted),
     rawDob: dobDecrypted, // For internal calculations

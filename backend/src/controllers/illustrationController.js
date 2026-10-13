@@ -2,13 +2,28 @@ const crypto = require('crypto');
 const illustrationService = require('../services/illustrationService');
 const illustrationRepository = require('../repositories/illustrationRepository');
 const userRepository = require('../repositories/userRepository');
+const { getPolicyCatalog } = require('../models/policyCatalog');
+
+/**
+ * Serve sample policy data, policy types, riders, and premium options
+ */
+async function getCatalog(req, res, next) {
+  try {
+    return res.status(200).json({
+      success: true,
+      data: getPolicyCatalog(),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
 
 /**
  * Perform on-the-fly benefit calculation without requiring persistence
  */
 async function calculate(req, res, next) {
   try {
-    let { dob, gender, sumAssured, modalPremium, premiumFrequency, pt, ppt, bonusStrategy } = req.body;
+    let { dob, gender, policyType, riders, sumAssured, modalPremium, premiumFrequency, pt, ppt, bonusStrategy } = req.body;
 
     // If DOB is not passed in request body but user is authenticated, use profile DOB
     if (!dob && req.user?.id) {
@@ -22,6 +37,8 @@ async function calculate(req, res, next) {
       {
         dob,
         gender: gender || 'M',
+        policyType: policyType || 'ENDOWMENT',
+        riders: Array.isArray(riders) ? riders : [],
         sumAssured,
         modalPremium,
         premiumFrequency: premiumFrequency || 'Yearly',
@@ -350,6 +367,7 @@ async function getBulkJobStatus(req, res, next) {
 }
 
 module.exports = {
+  getCatalog,
   calculate,
   save,
   getHistory,

@@ -41,12 +41,22 @@ describe('Auth & API Integration Suite', () => {
       expect(res.body.token).toBeDefined();
       expect(res.body.user).toBeDefined();
       expect(res.body.user.email).toBe('rahul.sharma@example.com');
-      // Verify PII is masked in response
+      // Verify PII (name, mobile, DOB) is masked in response
+      expect(res.body.user.fullName).toBe('R***l S****a');
       expect(res.body.user.mobile).toBe('******3210');
       expect(res.body.user.dob).toBe('****-**-12');
       // Password hash must NEVER be returned
       expect(res.body.user.password_hash).toBeUndefined();
       expect(res.body.user.password).toBeUndefined();
+
+      // Verify name, dob, and mobile are encrypted/masked in the database at rest
+      const dbRow = await db.query('SELECT full_name, dob_encrypted, mobile_encrypted FROM users WHERE id = $1', [
+        res.body.user.id,
+      ]);
+      expect(dbRow.rows[0].full_name).not.toBe('Rahul Sharma');
+      expect(dbRow.rows[0].full_name).toContain(':');
+      expect(dbRow.rows[0].dob_encrypted).not.toBe('1999-12-12');
+      expect(dbRow.rows[0].mobile_encrypted).not.toBe('9876543210');
 
       user1Token = res.body.token;
       user1Id = res.body.user.id;
@@ -91,6 +101,7 @@ describe('Auth & API Integration Suite', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.token).toBeDefined();
+      expect(res.body.user.fullName).toBe('R***l S****a');
       expect(res.body.user.mobile).toBe('******3210');
     });
 
@@ -122,6 +133,7 @@ describe('Auth & API Integration Suite', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.user.email).toBe('rahul.sharma@example.com');
+      expect(res.body.user.fullName).toBe('R***l S****a');
       expect(res.body.user.mobile).toBe('******3210');
       expect(res.body.user.dob).toBe('****-**-12');
     });
@@ -134,12 +146,25 @@ describe('Auth & API Integration Suite', () => {
   });
 
   describe('3. Illustration API & Access Control', () => {
-    test('POST /api/illustrations/calculate generates illustration dynamically', async () => {
+    test('GET /api/illustrations/catalog serves policy types, riders, premium options, and sample policies', async () => {
+      const res = await request(app).get('/api/illustrations/catalog');
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.policyTypes.length).toBeGreaterThanOrEqual(3);
+      expect(res.body.data.riders.length).toBeGreaterThanOrEqual(3);
+      expect(res.body.data.premiumOptions.length).toBe(3);
+      expect(res.body.data.samplePolicies.length).toBeGreaterThanOrEqual(1);
+    });
+
+    test('POST /api/illustrations/calculate generates illustration dynamically with policyType and riders', async () => {
       const res = await request(app)
         .post('/api/illustrations/calculate')
         .send({
           dob: '1999-12-12',
           gender: 'M',
+          policyType: 'ENDOWMENT',
+          riders: ['ACCIDENTAL_DEATH', 'WAIVER_OF_PREMIUM'],
           sumAssured: 1200000,
           modalPremium: 40000,
           premiumFrequency: 'Yearly',
@@ -150,6 +175,8 @@ describe('Auth & API Integration Suite', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.schedule).toHaveLength(20);
+      expect(res.body.data.policy.policyType).toBe('ENDOWMENT');
+      expect(res.body.data.policy.riders).toHaveLength(2);
       expect(res.body.data.policy.totalPremiumsPaid).toBe(400000);
       expect(res.body.data.policy.maturityBenefit).toBeGreaterThan(1200000);
       expect(res.body.data.policy.irrPercentage).not.toBeNull();

@@ -1,212 +1,119 @@
 # Benefit Illustration Module
 
-A production-grade, full-stack web application and actuarial calculation engine for traditional life insurance Benefit Illustrations (BI), built strictly according to the reference model `assignment_reference_sample (1).xlsm`.
+A full-stack web application that calculates life insurance **Benefit Illustrations (BI)**—including 20-year cashflows, bonuses, maturity payouts, and Internal Rate of Return (IRR)—based on the reference Excel workbook (`assignment_reference_sample (1).xlsm`).
 
 ---
 
-## 1. Overview & Architecture
+## Features
 
-This application delivers a complete life insurance Benefit Illustration module:
-- **Actuarial Calculation Engine:** Accurately reproduces the 20-year projection table, bonus accruals, maturity benefits, annual cash flows, and policy Internal Rate of Return (IRR) matching the Excel workbook.
-- **5 Assignment Validations:** Rigorously enforces policy term, premium paying term, completed birthday age limits, premium boundaries, and sum assured multiples.
-- **Enterprise Security:** AES-256-GCM authenticated encryption for sensitive customer fields (DOB, mobile), bcrypt password hashing, and UI/log data masking.
-- **Scalable Architecture:** Asynchronous batch processing design with prototype endpoint for processing large-scale policy submissions.
-- **Modern UI:** Responsive React application with Vite, Bootstrap, real-time validation, dynamic 20-year schedule, and CSV export.
-
-```
-                    +-----------------------------+
-                    |    React Frontend (Vite)    |
-                    |  - Policy Form & Validation |
-                    |  - Dynamic 20-Year Schedule |
-                    |  - CSV Export & Bulk UI     |
-                    +-----------------------------+
-                                   |
-                             Axios / JWT
-                                   v
-                    +-----------------------------+
-                    |     Express.js API Server   |
-                    |  - Helmet & Rate Limiting   |
-                    |  - express-validator        |
-                    |  - JWT Authentication       |
-                    +-----------------------------+
-                                   |
-                  +----------------+----------------+
-                  |                                 |
-                  v                                 v
-   +------------------------------+   +------------------------------+
-   |   Actuarial Engine Service   |   |     PostgreSQL Database      |
-   |  - Age Calculation (DOB)     |   |  - Users (AES-256-GCM)       |
-   |  - Bonus Schedule (Yr 1..20) |   |  - Policies                  |
-   |  - Maturity Benefit & CFs    |   |  - Illustrations & Schedules |
-   |  - Newton-Raphson IRR Solver |   |  - Bulk Jobs & Records       |
-   +------------------------------+   +------------------------------+
-```
+- **20-Year Projection Engine:** Calculates annual premiums, bonuses, total maturity benefit, net cashflows, and IRR matching the reference Excel formulas.
+- **Policy Validation:** Enforces rules for policy term, premium paying term, age limits, premium minimums, and sum assured caps.
+- **Data Security:** Encrypts sensitive customer details (name, DOB, mobile) with AES-256-GCM, hashes passwords with bcrypt, and masks personal info in the UI.
+- **Bulk Upload:** Supports uploading CSV files to process multiple policies in the background.
+- **Interactive UI:** Built with React and Bootstrap—includes live form validation, a 20-year schedule table, and CSV export.
 
 ---
 
-## 2. Technology Stack
+## Tech Stack
 
-- **Frontend:** React 18, Vite, React Router v6, Axios, Bootstrap 5.
-- **Backend:** Node.js v20+, Express.js, express-validator.
-- **Database:** PostgreSQL (with `pg` connection pool and automatic `pg-mem` fallback for zero-config testing).
-- **Authentication & Security:** JWT (`jsonwebtoken`), `bcryptjs`, Node.js native `crypto` (AES-256-GCM).
-- **Testing:** Jest, Supertest.
-
----
-
-## 3. Prerequisites
-
-- **Node.js:** v18.0.0 or higher (v20+ recommended).
-- **npm:** v9.0.0 or higher.
-- *(Optional)* **PostgreSQL:** v12+ if running against an external PostgreSQL server. (If PostgreSQL is not running locally, the application automatically boots into zero-config memory database mode for instant developer evaluation).
+- **Frontend:** React 18, Vite, React Router, Axios, Bootstrap 5
+- **Backend:** Node.js, Express.js, `express-validator`
+- **Database:** PostgreSQL (automatically falls back to an in-memory database if PostgreSQL isn't installed)
+- **Security:** JWT authentication, `bcryptjs`, Node `crypto` (AES-256-GCM)
+- **Testing:** Jest, Supertest
 
 ---
 
-## 4. Quick Start & Installation
+## Quick Start
 
-### Step 1: Clone & Install Dependencies
+### Prerequisites
+- **Node.js** v18+ and **npm** v9+
+- **PostgreSQL** *(Optional — if not running, the app automatically uses a built-in memory database)*
+
+### 1. Install Dependencies
 
 ```bash
-# In the project root:
+# Install backend packages
 cd backend && npm install
+
+# Install frontend packages
 cd ../frontend && npm install
 cd ..
 ```
 
-### Step 2: Environment Configuration
-
-Copy the example environment files:
+### 2. Set Up Environment Variables
 
 ```bash
 cp .env.example backend/.env
 ```
 
-### Step 3: Run Database Migrations (Optional for external PostgreSQL)
+*(Optional)* If you are using a local PostgreSQL server, update `DATABASE_URL` in `backend/.env` and run `cd backend && npm run migrate`.
 
-If connecting to a live PostgreSQL instance, set `DATABASE_URL` in `backend/.env` and run:
+### 3. Start the App
 
+Open two terminals:
+
+**Terminal 1 — Backend (runs on `http://localhost:5001`):**
 ```bash
-cd backend && npm run migrate
-cd ..
+cd backend && npm start
 ```
 
-*(Note: When running tests or in development without a live PostgreSQL server, the backend automatically initializes the complete PostgreSQL DDL schema in memory).*
+**Terminal 2 — Frontend (runs on `http://localhost:5173`):**
+```bash
+cd frontend && npm run dev
+```
 
-### Step 4: Run Tests
+Open **`http://localhost:5173`** in your browser.
 
-Execute the comprehensive unit and integration test suite:
+---
+
+## Running Tests
+
+To run the backend test suite (calculations, validations, and API/security tests):
 
 ```bash
 cd backend && npm test
 ```
 
-Expected output: **50 tests passed** across all 3 test suites:
-- `tests/calculation.test.js` (18 tests: Excel parity, IRR convergence, cash flows, bonus schedules)
-- `tests/validation.test.js` (16 tests: 5 assignment validations and boundaries)
-- `tests/authAndApi.test.js` (16 tests: JWT, registration, login, data masking, tenant isolation, bulk jobs)
+---
+
+## Calculation Summary
+
+Full details are in [`docs/excel-analysis.md`](docs/excel-analysis.md).
+
+| Column | How It Is Calculated |
+|---|---|
+| **Premium** | Paid each year up to the Premium Paying Term (PPT); `0` after that. |
+| **Sum Assured** | Paid out only in the final Policy Term (PT) year. |
+| **Bonus Rate** | Fixed 20-year schedule ranging from `2.5%` to `25.0%`. |
+| **Bonus Amount** | `Bonus Rate × Sum Assured` each year. |
+| **Total Benefit** | Paid at maturity (year PT): `Sum Assured + Total Accumulated Bonuses`. |
+| **Net Cashflows** | `-Premium` during paying years, and `+Total Benefit` in the maturity year. |
+| **IRR** | Internal Rate of Return across all annual cashflows (`8.4150%` for the sample policy). |
 
 ---
 
-## 5. Starting the Application
+## API Endpoints
 
-### Start the Backend API Server:
+### Auth
+- `POST /api/auth/register` — Register a new user
+- `POST /api/auth/login` — Log in and receive a JWT token
+- `GET /api/auth/me` — Get current user profile (masked PII)
 
-```bash
-cd backend && npm start
-# API server starts on http://localhost:5001
-```
-
-### Start the React Frontend:
-
-In a separate terminal:
-
-```bash
-cd frontend && npm run dev
-# Vite dev server starts on http://localhost:5173
-```
-
-Visit **`http://localhost:5173`** in your browser.
+### Illustrations
+- `GET /api/illustrations/catalog` — Load sample policy data and dropdown options
+- `POST /api/illustrations/calculate` — Calculate a 20-year illustration and IRR
+- `POST /api/illustrations/save` — Save a calculated policy to the database
+- `GET /api/illustrations` — List saved illustrations for the logged-in user
+- `GET /api/illustrations/:id` — View a single saved illustration
+- `GET /api/illustrations/:id/export` — Download the illustration as a CSV
+- `POST /api/illustrations/bulk-upload` — Upload a CSV for bulk calculation
+- `GET /api/illustrations/bulk-jobs/:id` — Check bulk upload progress
 
 ---
 
-## 6. Actuarial Calculation Rules & Excel Analysis
+## Additional Documentation
 
-Detailed workbook documentation is available in [`docs/excel-analysis.md`](docs/excel-analysis.md).
-
-### 6.1 Formula Parity Matrix
-
-| Illustration Column | Reference Excel Formula | Implementation in `illustrationService.js` |
-|---|---|---|
-| **Premium** | `=IF(A_r <= PPT, Modal_Premium, 0)` | Applied for years $1 \dots PPT$; zero thereafter. |
-| **Sum Assured** | `=IF(PT = A_r, Sum_Assured, 0)` | Paid out exclusively in maturity year $PT$; zero in other years. |
-| **Bonus Rate** | Literal constants (rows 4 to 23) | Hardcoded 20-year array from 2.5% to 25.0%. |
-| **Bonus Amount** | `=Bonus_Rate * Sum_Assured` | Exact multiplication with safe currency rounding. |
-| **Total Benefit** | `=IF(PT = A_r, C_r + SUM(E$1:E$23), 0)` | Sum of Sum Assured + Accumulated Bonuses in maturity year. |
-| **Net Cashflows** | `=IF(PT = A_r, F_r, C_r - B_r)` | $- \text{Premium}$ during paying years; $+ \text{Total Benefit}$ in year $PT$. |
-| **IRR** | `=IRR(G4:G23)` | Newton-Raphson polynomial solver (matches $8.4150\%$). |
-
-### 6.2 Key Discrepancies Investigated
-
-1. **₹80,000 Sample Premium vs. Legacy ₹50,000 Validation Limit:**
-   - The sample workbook input specifies a Modal Premium of ₹80,000, while the historical text in the reference template suggested an upper limit of ₹50,000.
-   - **Resolution:** The ₹50,000 ceiling and separate override toggles have been removed. The system allows any valid positive premium amount (including the ₹80,000 sample workbook input, ₹1,00,000+, or custom entries) directly without artificial caps or separate override logic.
-2. **Sum Assured Validation Rule Phrasing:**
-   - Workbook text states: *"Minimum of 10 times Sum assured or 5000000"*.
-   - **Resolution:** Interpreted according to Indian regulatory standards (IRDAI & Section 10(10D)): $\text{Sum Assured} \ge 10 \times \text{Annual Premium}$ and $\text{Sum Assured} \le ₹50,00,000$.
-
----
-
-## 7. API Documentation
-
-### Authentication Endpoints
-
-| Method | Endpoint | Description | Auth Required |
-|---|---|---|:---:|
-| `POST` | `/api/auth/register` | Register new user with encrypted DOB & mobile | No |
-| `POST` | `/api/auth/login` | Authenticate user & return signed JWT | No |
-| `GET` | `/api/auth/me` | Fetch current user profile with masked PII | **Yes** |
-
-### Illustration Endpoints
-
-| Method | Endpoint | Description | Auth Required |
-|---|---|---|:---:|
-| `POST` | `/api/illustrations/calculate` | Compute dynamic 20-year illustration & IRR | Optional |
-| `POST` | `/api/illustrations/save` | Persist policy, calculation, and schedule to DB | **Yes** |
-| `GET` | `/api/illustrations` | Paginated calculation history for logged-in user | **Yes** |
-| `GET` | `/api/illustrations/:id` | Fetch specific illustration and full schedule | **Yes** |
-| `GET` | `/api/illustrations/:id/export` | Download illustration as CSV file | **Yes** |
-| `POST` | `/api/illustrations/bulk-upload` | Asynchronous bulk CSV upload & job dispatch | **Yes** |
-| `GET` | `/api/illustrations/bulk-jobs/:id` | Check status and progress of bulk job | **Yes** |
-
----
-
-## 8. Customer Data Security & Privacy
-
-Detailed documentation is available in [`docs/security.md`](docs/security.md).
-
-- **Encryption at Rest:** Sensitive customer fields (`dob`, `mobile`) are encrypted before database insertion using authenticated **AES-256-GCM** with a unique 96-bit IV per row and 128-bit authentication tags.
-- **Password Security:** Passwords hashed using `bcrypt` with salt rounds = 10.
-- **Data Masking:** Mobile numbers masked as `******3210`; DOB masked as `****-**-12`.
-- **Tenant Isolation:** Enforces strict row-level ownership checks preventing cross-user unauthorized access.
-- **Defensive Headers & Rate Limiting:** Protected via `helmet` and `express-rate-limit`.
-
----
-
-## 9. Scalability Architecture for Millions of Records
-
-Detailed architecture is available in [`docs/scalability.md`](docs/scalability.md).
-
-- **Asynchronous Ingestion:** Decouples file uploads from calculations using distributed message brokers (BullMQ / RabbitMQ).
-- **Chunked Processing:** Splits large CSV files into batches (e.g. 2,500 records) to prevent memory exhaustion (OOM).
-- **High-Performance Persistence:** Utilizes PostgreSQL `COPY` streaming protocol (50,000+ rows/sec) and table partitioning.
-- **Idempotency & Retries:** Automatic lock renewal and dead-letter queues (DLQ) for failed records.
-
----
-
-## 10. Development & Sample Data
-
-A sample test account can be registered via the UI or using the credentials:
-- **Email:** `demo.user@example.com`
-- **Password:** `Password@123`
-- *(Contains no real customer PII)*.
-
+- **Excel Formula Analysis:** [`docs/excel-analysis.md`](docs/excel-analysis.md)
+- **Security & Privacy Design:** [`docs/security.md`](docs/security.md)
+- **High-Volume Scalability:** [`docs/scalability.md`](docs/scalability.md)

@@ -159,5 +159,26 @@ describe('Policy Validation Suite', () => {
       expect(res.errors.length).toBeGreaterThanOrEqual(4);
     });
   });
+
+  describe('7. Policy Types and Riders Validation', () => {
+    test('accepts valid policyType and riders array', () => {
+      const res = validatePolicyInputs({
+        ...validParams,
+        policyType: 'MONEY_BACK',
+        riders: ['ACCIDENTAL_DEATH', 'CRITICAL_ILLNESS'],
+      });
+      expect(res.isValid).toBe(true);
+    });
+
+    test('rejects invalid policyType or invalid rider ID', () => {
+      const badType = validatePolicyInputs({ ...validParams, policyType: 'INVALID_TYPE' });
+      expect(badType.isValid).toBe(false);
+      expect(badType.errors).toContainEqual(expect.stringContaining('Policy Type'));
+
+      const badRider = validatePolicyInputs({ ...validParams, riders: ['UNKNOWN_RIDER'] });
+      expect(badRider.isValid).toBe(false);
+      expect(badRider.errors).toContainEqual(expect.stringContaining('Invalid rider'));
+    });
+  });
 });
 

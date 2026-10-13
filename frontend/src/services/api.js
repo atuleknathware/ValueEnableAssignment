@@ -43,6 +43,7 @@ export const authAPI = {
 
 // Illustration APIs
 export const illustrationAPI = {
+  getCatalog: () => api.get('/illustrations/catalog'),
   calculate: (params) => api.post('/illustrations/calculate', params),
   save: (data) => api.post('/illustrations/save', data),
   getHistory: (page = 1, limit = 10) => api.get(`/illustrations?page=${page}&limit=${limit}`),

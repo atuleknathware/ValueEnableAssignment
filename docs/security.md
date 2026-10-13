@@ -26,26 +26,27 @@ Benefit Illustration systems handle Personally Identifiable Information (PII) in
 
 ### 2.2 Application-Layer Field Encryption: AES-256-GCM
 - **Encrypted Fields:**
+  - Customer Full Name (`full_name`)
   - Date of Birth (`dob_encrypted`)
   - Mobile Number (`mobile_encrypted`)
 - **Cipher:** `aes-256-gcm` (Advanced Encryption Standard in Galois/Counter Mode).
 - **Key Derivation:** 256-bit symmetric key (`ENCRYPTION_KEY`) sourced exclusively from environment variables or a secrets manager. If a non-64-hex string is provided, a deterministic SHA-256 digest derives the required 32-byte key buffer.
 - **Initialization Vector (IV):** Cryptographically secure pseudo-random 12-byte (96-bit) IV generated per encryption invocation using `crypto.randomBytes(12)`. IV is never reused.
 - **Authentication Tag:** 16-byte (128-bit) GCM authentication tag verifying ciphertext authenticity and preventing ciphertext manipulation or bit-flipping attacks.
-- **Storage Format:** Stored in PostgreSQL columns as `iv:authTag:ciphertext` in hex encoding.
+- **Storage Format:** Stored in PostgreSQL/MySQL columns as `iv:authTag:ciphertext` in hex encoding.
 
 ```
 +-----------------------------------------------------------+
 | Application Layer Encryption (AES-256-GCM)                |
 | +----------------+   +------------------+   +-----------+ |
-| | Plaintext DOB  | + | 96-bit Random IV | + | 256-bit K | |
+| | Plaintext PII  | + | 96-bit Random IV | + | 256-bit K | |
 | +----------------+   +------------------+   +-----------+ |
 |                           |                               |
 |                     [AES-256-GCM]                         |
 |                           |                               |
 |        Payload: "ivHex : authTagHex : cipherHex"          |
 |                           |                               |
-|            Stored into PostgreSQL column                  |
+|            Stored into RDBMS column                       |
 +-----------------------------------------------------------+
 ```
 
@@ -54,13 +55,15 @@ Benefit Illustration systems handle Personally Identifiable Information (PII) in
 ## 3. Data Masking Policy
 
 To comply with data privacy regulations (e.g., GDPR, Digital Personal Data Protection Act):
-1. **Mobile Numbers:** Displayed in UI and API responses with only the last 4 digits visible:
+1. **Customer Full Name:** Masked in API responses and UI displays keeping only the first and last character of each word:
+   - Example: `Rahul Sharma` $\rightarrow$ `R***l S****a`.
+2. **Mobile Numbers:** Displayed in UI and API responses with only the last 4 digits visible:
    - Example: `9876543210` $\rightarrow$ `******3210`.
-2. **Date of Birth:** Year and month are masked in public displays:
+3. **Date of Birth:** Year and month are masked in public displays:
    - Example: `1999-12-12` $\rightarrow$ `****-**-12`.
-3. **Email Addresses:** Masked where appropriate:
+4. **Email Addresses:** Masked where appropriate:
    - Example: `rahul.sharma@example.com` $\rightarrow$ `r***a@example.com`.
-4. **Logs & Audit Trails:** Raw request bodies containing sensitive fields are never printed to console logs or log files.
+5. **Logs & Audit Trails:** Raw request bodies containing sensitive fields are never printed to console logs or log files.
 
 ---
 
